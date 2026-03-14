@@ -1,0 +1,10 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "sensor"
+    metrics_path: "/metrics"
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ["sensor:8000"]

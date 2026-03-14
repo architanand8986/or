@@ -1,0 +1,59 @@
+services:
+
+  sensor:
+    build: ./sensor
+    ports:
+      - "8000:8000"
+    mem_limit: 150m
+    cpus: "0.5"
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  vmagent:
+    image: victoriametrics/vmagent:v1.106.1
+    volumes:
+      - ./monitoring/vmagent.yml:/etc/vmagent/config.yml
+    command:
+      - "-promscrape.config=/etc/vmagent/config.yml"
+      - "-remoteWrite.url=http://victoria:8428/api/v1/write"
+    mem_limit: 60m
+    cpus: "0.25"
+    restart: always
+    depends_on:
+      - sensor
+      - victoria
+
+  victoria:
+    image: victoriametrics/victoria-metrics:v1.106.1
+    ports:
+      - "8428:8428"
+    volumes:
+      - vmdata:/storage
+    command:
+      - "-storageDataPath=/storage"
+      - "-retentionPeriod=24h"
+      - "-memory.allowedPercent=60"
+    mem_limit: 160m
+    cpus: "0.5"
+    restart: always
+
+  ui:
+    image: caddy:2-alpine
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./ui/Caddyfile:/etc/caddy/Caddyfile
+      - ./ui/index.html:/srv/index.html:ro
+      - ./ui/app.js:/srv/app.js:ro
+    mem_limit: 20m
+    cpus: "0.15"
+    restart: always
+    depends_on:
+      - victoria
+
+volumes:
+  vmdata:
